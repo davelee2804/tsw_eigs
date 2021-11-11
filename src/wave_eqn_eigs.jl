@@ -14,7 +14,7 @@ function profiles(x)
 end
 
 D = 2*π
-order = 0
+order = 1
 domain = (0,D)
 partition = (128,)
 
@@ -39,7 +39,10 @@ de(x) = profiles(x[1])[4]
 E(x)  = profiles(x[1])[5]
 f(x)  = 0.0*(h(x)-1.0)
 
-en = interpolate_everywhere(e,S)
+h2 = interpolate_everywhere(h,Q)
+e0 = interpolate_everywhere(e,S)
+e2 = interpolate_everywhere(e,Q)
+E2 = interpolate_everywhere(E,Q)
 
 mp(p,q) = ∫(q*p)dΩ
 Mp = assemble_matrix(mp, P, Q)
@@ -71,11 +74,11 @@ A = MuInv*Mg*MpInv*Md # + MuInv*Muc*MuInv*Muc
 ω1i = imag(ω1)
 
 # flux form, E∈ L²(Ω)
-mue(u,v) = ∫(v⋅u*e)dΩ
+mue(u,v) = ∫(v⋅u*e0)dΩ
 Mue = assemble_matrix(mue, U, V)
-muh(u,v) = ∫(v⋅u*h)dΩ
+muh(u,v) = ∫(v⋅u*h2)dΩ
 Muh = assemble_matrix(muh, U, V)
-muE(u,v) = ∫(v⋅u*E)dΩ
+muE(u,v) = ∫(v⋅u*E2)dΩ
 MuE = assemble_matrix(muE, U, V)
 
 B = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuE
@@ -91,7 +94,7 @@ B = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuE
 #Mude = -1.0*assemble_matrix(mude, U, V)
 #mduu(u,v) = ∫(v⋅((u->u[1])∘gradient(u)))dΩ
 #Mduu = assemble_matrix(mduu, U, V)
-mrude(u,s) = ∫(s*∇(en)⋅u)dΩ
+mrude(u,s) = ∫(s*∇(e0)⋅u)dΩ
 Mrude = assemble_matrix(mrude, U, S)
 
 #C = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mduu*MuInv*Mude
@@ -101,15 +104,18 @@ C = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mgr*MrInv*Mrude
 ω3i = imag(ω3)
 
 # material form, e∈ L²(Ω)
+mue2(u,v) = ∫(v⋅u*e2)dΩ
+Mue2 = assemble_matrix(mue2, U, V)
 #medpu(u,q) = ∫(e*((u->u[1])∘gradient(u*q)))dΩ
 #medpu(u,q) = ∫(e*q*((u->u[1])∘gradient(u)) + e*u*((q->q[1])∘gradient(q)))dΩ
-medpu(u,q) = ∫(e*q*(∇⋅u) + e*u⋅∇(q))dΩ
+medpu(u,q) = ∫(e2*q*(∇⋅u) + e2*u⋅∇(q))dΩ
 Medpu = assemble_matrix(medpu, U, Q)
-buqe(u,q) = ∫(mean(e*q)*jump(u⋅n_Γ))dΓ
+buqe(u,q) = ∫(mean(e2*q)*jump(u⋅n_Γ))dΓ
 Buqe = assemble_matrix(buqe, U, Q)
 
 #D = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Mg*MpInv*Buqe
 D = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Muh*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Muh*MuInv*Mg*MpInv*Buqe
+#D = MuInv*Mue2*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Muh*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Muh*MuInv*Mg*MpInv*Buqe
 ω4,v4 = eigs(D; nev=(order+1)*partition[1]-2)
 ω4r = real(ω4)
 ω4i = imag(ω4)

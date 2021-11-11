@@ -1,98 +1,120 @@
 using LinearAlgebra
+using Plots
 using Arpack
 using Gridap
 using Gridap: ∇
 
 function profiles(x)
-  H  = 1.0 .+ 0.1.*cos.(x .- π)
-  dH = 1.0 .- 0.1.*sin.(x .- π)
-  s  = 1.0 ./ H ./ H
-  ds = -2.0 .* dH ./ H ./ H ./ H
-  S  = s .* H
-  H, dH, s, ds, S
+  H  = 1.0 .+ 0.5.*cos.(x .- π)
+  dH = 1.0 .- 0.5.*sin.(x .- π)
+  e  = 1.0 ./ H ./ H
+  de = -2.0 .* dH ./ H ./ H ./ H
+  E  = e .* H
+  H, dH, e, de, E
 end
 
 D = 2*π
-order = 1
+order = 0
 domain = (0,D)
 partition = (128,)
 
 model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
 Ω = Triangulation(model)
-dΩ = Measure(Ω, 2*order)
+dΩ = Measure(Ω, 2*(order+1))
+Γ = SkeletonTriangulation(model)
+dΓ = Measure(Γ, 0)
+n_Γ = get_normal_vector(Γ)
 
-V = FESpace(model, ReferenceFE(lagrangian, Float64, order), conformity=:H1)
-Q = FESpace(model, ReferenceFE(lagrangian, Float64, order-1), conformity=:L2)
+S = FESpace(model, ReferenceFE(lagrangian, Float64, order+1), conformity=:H1)
+V = FESpace(model, ReferenceFE(raviart_thomas, Float64, order), conformity=:HDiv)
+Q = FESpace(model, ReferenceFE(lagrangian, Float64, order), conformity=:L2)
+R = TrialFESpace(S)
 U = TrialFESpace(V)
 P = TrialFESpace(Q)
 
 h(x)  = profiles(x[1])[1]
 dh(x) = profiles(x[1])[2]
-s(x)  = profiles(x[1])[3]
-ds(x) = profiles(x[1])[4]
-S(x)  = profiles(x[1])[5]
+e(x)  = profiles(x[1])[3]
+de(x) = profiles(x[1])[4]
+E(x)  = profiles(x[1])[5]
 f(x)  = 0.0*(h(x)-1.0)
+
+en = interpolate_everywhere(e,S)
 
 mp(p,q) = ∫(q*p)dΩ
 Mp = assemble_matrix(mp, P, Q)
+MpInv = inv(Matrix(Mp))
 
 mu(u,v) = ∫(v⋅u)dΩ
 Mu = assemble_matrix(mu, U, V)
-
-#md(u,q) = ∫(q*∇(u))dΩ
-md(u,q) = ∫(q*((u->u[1])∘gradient(u)))dΩ
-Md = assemble_matrix(md, U, Q)
-Mg = transpose(Md)
-
-MpInv = inv(Matrix(Mp))
 MuInv = inv(Matrix(Mu))
+
+mr(r,s) = ∫(s*r)dΩ
+Mr = assemble_matrix(mr, R, S)
+MrInv = inv(Matrix(Mr))
+
+md(u,q) = ∫(q*(∇⋅u))dΩ
+Md = assemble_matrix(md, U, Q)
+#md(u,q) = ∫(q*((u->u[1])∘gradient(u)))dΩ
+#Md = assemble_matrix(md, R, Q)
+Mg = transpose(Md)
+mgr(v,r) = ∫((∇⋅v)⋅r)dΩ
+Mgr = assemble_matrix(mgr, R, V)
 
 muc(u,v) = ∫(f*u⋅v)dΩ
 Muc = assemble_matrix(muc, U, V)
 
 # wave eqn
-A = MuInv*Mg*MpInv*Md# + MuInv*Muc*MuInv*Muc
-ω1,v1 = eigs(A; nev=order*partition[1]-2)
+A = MuInv*Mg*MpInv*Md # + MuInv*Muc*MuInv*Muc
+ω1,v1 = eigs(A; nev=(order+1)*partition[1]-2)
 ω1r = real(ω1)
 ω1i = imag(ω1)
 
-# flux form, S∈ L²(Ω)
-mus(u,v) = ∫(v⋅u*s)dΩ
-Mus = assemble_matrix(mus, U, V)
+# flux form, E∈ L²(Ω)
+mue(u,v) = ∫(v⋅u*e)dΩ
+Mue = assemble_matrix(mue, U, V)
 muh(u,v) = ∫(v⋅u*h)dΩ
 Muh = assemble_matrix(muh, U, V)
-muS(u,v) = ∫(v⋅u*S)dΩ
-MuS = assemble_matrix(muS, U, V)
+muE(u,v) = ∫(v⋅u*E)dΩ
+MuE = assemble_matrix(muE, U, V)
 
-B = 0.5*MuInv*Mus*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuS# + MuInv*Muc*MuInv*Muc
-ω2,v2 = eigs(B; nev=order*partition[1]-2)
+B = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuE
+ω2,v2 = eigs(B; nev=(order+1)*partition[1]-2)
 ω2r = real(ω2)
 ω2i = imag(ω2)
 
-# material form, s∈ H¹(Ω) 
-#muds(u,v) = ∫(v⋅u*ds)dΩ
-#Muds = assemble_matrix(muds, U, V)
-muds(u,v) = ∫(s*v⋅((u->u[1])∘gradient(u))+s*u⋅((v->v[1])∘gradient(v)))dΩ
-Muds = -1.0*assemble_matrix(muds, U, V)
-mduu(u,v) = ∫(v⋅((u->u[1])∘gradient(u)))dΩ
-Mduu = assemble_matrix(mduu, U, V)
+# material form, e∈ H¹(Ω) 
+#mude(u,v) = ∫(v⋅u*de)dΩ
+#Mude = assemble_matrix(mude, U, V)
+#mude(u,v) = ∫(e*v⋅((u->u[1])∘gradient(u))+e*u⋅((v->v[1])∘gradient(v)))dΩ
+#mude(u,v) = ∫(∇(u⋅v))dΩ
+#Mude = -1.0*assemble_matrix(mude, U, V)
+#mduu(u,v) = ∫(v⋅((u->u[1])∘gradient(u)))dΩ
+#Mduu = assemble_matrix(mduu, U, V)
+mrude(u,s) = ∫(s*∇(en)⋅u)dΩ
+Mrude = assemble_matrix(mrude, U, S)
 
-C = MuInv*Mus*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mduu*MuInv*Muds# + MuInv*Muc*MuInv*Muc
-ω3,v3 = eigs(C; nev=order*partition[1]-2)
+#C = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mduu*MuInv*Mude
+C = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mgr*MrInv*Mrude
+ω3,v3 = eigs(C; nev=(order+1)*partition[1]-2)
 ω3r = real(ω3)
 ω3i = imag(ω3)
 
-# material form, s∈ L²(Ω)
-msdpu(u,q) = ∫(s*((u->u[1])∘gradient(u*q)))dΩ
-Msdpu = assemble_matrix(msdpu, U, Q)
+# material form, e∈ L²(Ω)
+#medpu(u,q) = ∫(e*((u->u[1])∘gradient(u*q)))dΩ
+#medpu(u,q) = ∫(e*q*((u->u[1])∘gradient(u)) + e*u*((q->q[1])∘gradient(q)))dΩ
+medpu(u,q) = ∫(e*q*(∇⋅u) + e*u⋅∇(q))dΩ
+Medpu = assemble_matrix(medpu, U, Q)
+buqe(u,q) = ∫(mean(e*q)*jump(u⋅n_Γ))dΓ
+Buqe = assemble_matrix(buqe, U, Q)
 
-D = MuInv*Mus*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Mg*MpInv*Msdpu# + MuInv*Muc*MuInv*Muc
-ω4,v4 = eigs(D; nev=order*partition[1]-2)
+#D = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Mg*MpInv*Buqe
+D = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Muh*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Muh*MuInv*Mg*MpInv*Buqe
+ω4,v4 = eigs(D; nev=(order+1)*partition[1]-2)
 ω4r = real(ω4)
 ω4i = imag(ω4)
 
-plt = plot()
-xq = LinRange(0, order*partition[1]-3, order*partition[1]-2)
+xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
 xq = reverse(xq)
 
 y1q = lazy_map(sqrt, ω1r)
@@ -107,14 +129,22 @@ z4q = lazy_map(abs, ω4i)
 
 plot_imag=false
 if(plot_imag)
-plot!(plt, xq, 2*z1q, legend = true, seriestype=scatter)
-plot!(plt, xq, 2*z2q, legend = true)
-plot!(plt, xq, 2*z3q, legend = true)
-plot!(plt, xq, 2*z4q, legend=:topleft)
+plt2 = plot()
+plot!(plt2, xq, 2*z1q, legend = true, seriestype=scatter)
+plot!(plt2, xq, 2*z2q, legend = true)
+plot!(plt2, xq, 2*z3q, legend = true)
+plot!(plt2, xq, 2*z4q, legend=:topleft)
 else
-plot!(plt, xq, xq, legend = false)
-plot!(plt, xq, 2*y1q.-0*y1q[partition[1]-2], legend = true, seriestype=scatter)
-plot!(plt, xq, 2*y2q.-0*y2q[partition[1]-2], legend = true)
-plot!(plt, xq, 2*y3q.-0*y3q[partition[1]-2], legend = true)
-plot!(plt, xq, 2*y4q.-0*y4q[partition[1]-2], legend=:topleft)
+plt1 = plot()
+plot!(plt1, 0.5*xq, 0.5*xq, legend = false)
+plot!(plt1, 0.5*xq, y1q.-0*y1q[partition[1]-2], legend = true, seriestype=scatter)
+plot!(plt1, 0.5*xq, y2q.-0*y2q[partition[1]-2], legend = true)
+plot!(plt1, 0.5*xq, y3q.-0*y3q[partition[1]-2], legend = true)
+plot!(plt1, 0.5*xq, y4q.-0*y4q[partition[1]-2], legend=:topleft)
+#plot!(plt1, 0.5*xq, 0.5*xq, legend = false)
+#plot!(plt1, 0.5*xq, y1q-0.5*xq.-0*y1q[partition[1]-2], legend = true, seriestype=scatter)
+#plot!(plt1, 0.5*xq, y2q-0.5*xq.-0*y2q[partition[1]-2], legend = true, seriestype=scatter)
+#plot!(plt1, 0.5*xq, y3q-0.5*xq.-0*y3q[partition[1]-2], legend = true)
+#plot!(plt1, 0.5*xq, y4q-0.5*xq.-0*y4q[partition[1]-2], legend=:topleft)
+display(plt1)
 end

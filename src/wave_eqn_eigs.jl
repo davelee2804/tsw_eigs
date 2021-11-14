@@ -17,9 +17,9 @@ function profiles(x)
 end
 
 D = 2*π
-order = 0
+order = 1
 domain = (0,D)
-partition = (128,)
+partition = (64,)
 
 model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
 Ω = Triangulation(model)
@@ -89,6 +89,19 @@ B = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuE 
 ω2r = real(ω2)
 ω2i = imag(ω2)
 
+# flux form, E∈ H¹(Ω)
+mge(r,v) = ∫(v⋅∇(r))dΩ
+Mge = assemble_matrix(mge, R, V)
+mde(u,s) = ∫(s*(∇⋅u))dΩ
+Mde = assemble_matrix(mde, U, S)
+mgeT(r,v) = ∫((∇⋅v)*r)dΩ
+MgeT = assemble_matrix(mgeT, R, V)
+#B1 = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Mge*MrInv*Mde*MuInv*MuE + MuInv*Muc*MuInv*Muc
+B1 = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*MgeT*MrInv*Mde*MuInv*MuE + MuInv*Muc*MuInv*Muc
+ω5,v5 = eigs(B1; nev=(order+1)*partition[1]-2)
+ω5r = real(ω5)
+ω5i = imag(ω5)
+
 # material form, e∈ H¹(Ω) 
 #mude(u,v) = ∫(v⋅u*de)dΩ
 #Mude = assemble_matrix(mude, U, V)
@@ -125,15 +138,18 @@ xq = reverse(xq)
 
 aω1r = lazy_map(abs, ω1r)
 aω2r = lazy_map(abs, ω2r)
+aω5r = lazy_map(abs, ω5r)
 aω3r = lazy_map(abs, ω3r)
 aω4r = lazy_map(abs, ω4r)
 y1q = lazy_map(sqrt, aω1r)
 y2q = lazy_map(sqrt, aω2r)
+y5q = lazy_map(sqrt, aω5r)
 y3q = lazy_map(sqrt, aω3r)
 y4q = lazy_map(sqrt, aω4r)
 
 z1q = lazy_map(abs, ω1i)
 z2q = lazy_map(abs, ω2i)
+z5q = lazy_map(abs, ω5i)
 z3q = lazy_map(abs, ω3i)
 z4q = lazy_map(abs, ω4i)
 print(z1q,"\n")
@@ -157,10 +173,12 @@ plt1 = plot()
 #plot!(plt1, 0.5*xq, 0.5*xq, legend = false)
 #plot!(plt1, 0.5*xq, y1q.-0*y1q[partition[1]-2], legend = true, seriestype=scatter)
 #plot!(plt1, 0.5*xq, y2q.-0*y2q[partition[1]-2], legend = true)
+#plot!(plt1, 0.5*xq, y5q.-0*y5q[partition[1]-2], legend = true)
 #plot!(plt1, 0.5*xq, y3q.-0*y3q[partition[1]-2], legend = true)
 #plot!(plt1, 0.5*xq, y4q.-0*y4q[partition[1]-2], legend=:topleft)
 plot!(plt1, 0.5*xq, y1q-0.5*xq.-0*y1q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
 plot!(plt1, 0.5*xq, y2q-0.5*xq.-0*y2q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
+plot!(plt1, 0.5*xq, y5q-0.5*xq.-0*y5q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
 plot!(plt1, 0.5*xq, y3q-0.5*xq.-0*y3q[partition[1]-2].-1.0, legend = true)
 plot!(plt1, 0.5*xq, y4q-0.5*xq.-0*y4q[partition[1]-2].-1.0, legend=:topleft)
 display(plt1)

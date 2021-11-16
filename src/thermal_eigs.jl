@@ -6,7 +6,7 @@ using Gridap: ∇
 
 function profiles(x)
   α  = 0.5
-  k  = 16
+  k  = 1
   H  = 1.0 .+ α.*cos.(k.*x .- π)
   dH = 1.0 .- k.*α.*sin.(k.*x .- π)
   e  = 1.0 ./ H ./ H
@@ -19,7 +19,7 @@ end
 D = 2*π
 order = 1
 domain = (0,D)
-partition = (64,)
+partition = (32,)
 
 model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
 Ω = Triangulation(model)
@@ -221,11 +221,11 @@ print(z4q,"\n")
 print(z5q,"\n")
 
 plt1 = plot()
-plot!(plt1, 0.5*xq, 0.5*xq, legend = false)
-plot!(plt1, 0.5*xq, y1q, legend = true)
-plot!(plt1, 0.5*xq, y2q, legend = true, seriestype=:scatter)
-plot!(plt1, 0.5*xq, y3q, legend = true)
-plot!(plt1, 0.5*xq, y4q, legend = true)
-plot!(plt1, 0.5*xq, y5q, legend = :topleft)
+plot!(plt1, 0.5*xq, 0.5*xq, legend = false, label="ω=k")
+plot!(plt1, 0.5*xq, y1q, legend = true, label="wave eqn.")
+plot!(plt1, 0.5*xq, y2q, legend = true, label="S∈ V₂", seriestype=:scatter)
+plot!(plt1, 0.5*xq, y3q, legend = true, label="S∈ V₀")
+plot!(plt1, 0.5*xq, y4q, legend = true, label="s∈ V₀")
+plot!(plt1, 0.5*xq, y5q, legend = :topleft, label="s∈ V₂")
 display(plt1)
 

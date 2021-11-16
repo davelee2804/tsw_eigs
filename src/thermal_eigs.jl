@@ -6,7 +6,7 @@ using Gridap: ∇
 
 function profiles(x)
   α  = 0.5
-  k  = 1
+  k  = 16
   H  = 1.0 .+ α.*cos.(k.*x .- π)
   dH = 1.0 .- k.*α.*sin.(k.*x .- π)
   e  = 1.0 ./ H ./ H
@@ -83,15 +83,22 @@ mue2(u,v) = ∫(v⋅u*e2)dΩ
 Mue2 = assemble_matrix(mue2, U, V)
 
 Dh = D*MuInv*Muh
-#Ge2 = Mue2*MuInv*G
-#De2 = D*MuInv*Mue2*MuInv*Muh
-ge2(p,v) = ∫((∇⋅(e2*v))*p)dΩ
-Ge2 = assemble_matrix(ge2, P, V)
-Ge2T = transpose(Ge2)
-c1(p,v) = ∫(mean(e2)*jump(p*v⋅n_Γ))dΓ
-C1 = assemble_matrix(c1, P, V)
-Ge2 = Ge2 - C1
-De2 = Ge2T*MuInv*Muh
+
+# projection in the poisson bracket
+Ge2 = Mue2*MuInv*G
+De2 = D*MuInv*Mue2*MuInv*Muh
+# integration by parts
+#ge2(p,v) = ∫((∇⋅(e2*v))*p)dΩ
+#Ge2 = assemble_matrix(ge2, P, V)
+# non-energy conserving divergence
+#Ge2T = transpose(Ge2)
+#De2 = Ge2T*MuInv*Muh
+# energy conserving divergence
+#c1(p,v) = ∫(mean(e2)*jump(p*v⋅n_Γ))dΓ
+#C1 = assemble_matrix(c1, P, V)
+#Ge2 = Ge2 - C1
+#Ge2T = transpose(Ge2)
+#De2 = Ge2T*MuInv*Muh
 
 FFE2 = 0.5*MuInv*Ge2*MpInv*Dh + 0.5*MuInv*G*MpInv*De2
 ω2,v2 = eigs(FFE2; nev=(order+1)*partition[1]-2)
@@ -105,15 +112,21 @@ mgs(v,r) = ∫((∇⋅v)⋅r)dΩ
 Gs = assemble_matrix(mgs, R, V)
 Ds = transpose(Gs)
 
+# projections in the Poisson bracket
 #Gse0 = Mue0*MuInv*Gs
 #Dse0 = Ds*MuInv*Mue0*MuInv*Muh
+# integration by parts
 ge0(r,v) = ∫((∇⋅(e0*v))*r)dΩ
 Gse0 = assemble_matrix(ge2, R, V)
-Gse0T = transpose(Gse0)
-Dse0 = Gse0T*MuInv*Muh
+# non-energy conserving divergence
+#Gse0T = transpose(Gse0)
+#Dse0 = Gse0T*MuInv*Muh
 c2(r,v) = ∫(mean(e0)*jump(r*v⋅n_Γ))dΓ
 C2 = assemble_matrix(c2, R, V)
 Gse0 = Gse0 - C2
+# energy conserving divergence
+Gse0T = transpose(Gse0)
+Dse0 = Gse0T*MuInv*Muh
 
 FFE0 = 0.5*MuInv*Gse0*MsInv*Msp*MpInv*Dh + 0.5*MuInv*G*MpInv*Mps*MsInv*Dse0
 ω3,v3 = eigs(FFE0; nev=(order+1)*partition[1]-2)

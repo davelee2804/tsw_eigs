@@ -6,7 +6,7 @@ using Gridap: ∇
 
 function profiles(x)
   α  = 0.5
-  k  = 1
+  k  = 16
   H  = 1.0 .+ α.*cos.(k.*x .- π)
   dH = 1.0 .- k.*α.*sin.(k.*x .- π)
   e  = 1.0 ./ H ./ H
@@ -129,7 +129,7 @@ Ge0 = assemble_matrix(ge0, P, V)
 
 b(s) = ∫(s*h2*h2)dΩ
 shsq = assemble_vector(b, S)
-hsq = MsInv*sh2
+hsq = MsInv*shsq
 gsh(r,v) = ∫((∇⋅(v*h2))*r)dΩ
 Gsh = assemble_matrix(gsh, R, V)
 
@@ -168,8 +168,7 @@ MFe2 = MuInv*Ge2*MpInv*Dh + 0.5*MuInv*Gh*MpInv*Aq
 ω5r = real(ω5)
 ω5i = imag(ω5)
 
-#xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
-xq = LinRange(1, (order+1)*partition[1]-2, (order+1)*partition[1]-2)
+xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
 xq = reverse(xq)
 
 aω1r = lazy_map(abs, ω1r)
@@ -203,80 +202,3 @@ plot!(plt1, 0.5*xq, y4q, legend = true)
 plot!(plt1, 0.5*xq, y5q, legend = :topleft)
 display(plt1)
 
-#mue(u,v) = ∫(v⋅u*e0)dΩ
-#Mue = assemble_matrix(mue, U, V)
-#muE(u,v) = ∫(v⋅u*E2)dΩ
-#MuE = assemble_matrix(muE, U, V)
-
-#B = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Mg*MpInv*Md*MuInv*MuE + MuInv*Muc*MuInv*Muc
-
-# flux form, E∈ H¹(Ω)
-#mge(r,v) = ∫(v⋅∇(r))dΩ
-#Mge = assemble_matrix(mge, R, V)
-#mde(u,s) = ∫(s*(∇⋅u))dΩ
-#Mde = assemble_matrix(mde, U, S)
-#mgeT(r,v) = ∫((∇⋅v)*r)dΩ
-#MgeT = assemble_matrix(mgeT, R, V)
-#B1 = 0.5*MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*MgeT*MrInv*Mde*MuInv*MuE + MuInv*Muc*MuInv*Muc
-#ω5,v5 = eigs(B1; nev=(order+1)*partition[1]-2)
-#ω5r = real(ω5)
-#ω5i = imag(ω5)
-
-# material form, e∈ H¹(Ω) 
-#mrude(u,s) = ∫(s*∇(e0)⋅u)dΩ
-#Mrude = assemble_matrix(mrude, U, S)
-
-#C = MuInv*Mue*MuInv*Mg*MpInv*Md*MuInv*Muh + 0.5*MuInv*Muh*MuInv*Mgr*MrInv*Mrude + MuInv*Muc*MuInv*Muc
-#ω3,v3 = eigs(C; nev=(order+1)*partition[1]-2)
-#ω3r = real(ω3)
-#ω3i = imag(ω3)
-
-# material form, e∈ L²(Ω)
-#mue2(u,v) = ∫(v⋅u*e2)dΩ
-#Mue2 = assemble_matrix(mue2, U, V)
-#medpu(u,q) = ∫(e2*q*(∇⋅u) + e2*u⋅∇(q))dΩ
-#Medpu = assemble_matrix(medpu, U, Q)
-#buqe(u,q) = ∫(mean(e2)*jump(q*u⋅n_Γ))dΓ
-#Buqe = assemble_matrix(buqe, U, Q)
-
-#D = MuInv*Mue2*MuInv*Mg*MpInv*Md*MuInv*Muh - 0.5*MuInv*Muh*MuInv*Mg*MpInv*Medpu + 0.5*MuInv*Muh*MuInv*Mg*MpInv*Buqe + MuInv*Muc*MuInv*Muc
-#ω4,v4 = eigs(D; nev=(order+1)*partition[1]-2)
-#ω4r = real(ω4)
-#ω4i = imag(ω4)
-
-
-#aω2r = lazy_map(abs, ω2r)
-#aω5r = lazy_map(abs, ω5r)
-#aω3r = lazy_map(abs, ω3r)
-#aω4r = lazy_map(abs, ω4r)
-#y2q = lazy_map(sqrt, aω2r)
-#y5q = lazy_map(sqrt, aω5r)
-#y3q = lazy_map(sqrt, aω3r)
-#y4q = lazy_map(sqrt, aω4r)
-
-#z2q = lazy_map(abs, ω2i)
-#z5q = lazy_map(abs, ω5i)
-#z3q = lazy_map(abs, ω3i)
-#z4q = lazy_map(abs, ω4i)
-#print(z4q,"\n")
-#print(y1q[12-2]-1,"\n")
-#print(y2q[12-2]-1,"\n")
-#print(y3q[12-2]-1,"\n")
-#print(y4q[12-2]-1,"\n")
-
-#plot_imag=false
-#if(plot_imag)
-#plt2 = plot()
-#plot!(plt2, xq, 2*z1q, legend = true, seriestype=scatter)
-#plot!(plt2, xq, 2*z2q, legend = true)
-#plot!(plt2, xq, 2*z3q, legend = true)
-#plot!(plt2, xq, 2*z4q, legend=:topleft)
-#else
-#plot!(plt1, 0.5*xq, y3q.-0*y3q[partition[1]-2], legend = true)
-#plot!(plt1, 0.5*xq, y4q.-0*y4q[partition[1]-2], legend=:topleft)
-#plot!(plt1, 0.5*xq, y1q-0.5*xq.-0*y1q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
-#plot!(plt1, 0.5*xq, y2q-0.5*xq.-0*y2q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
-#plot!(plt1, 0.5*xq, y5q-0.5*xq.-0*y5q[partition[1]-2].-1.0, legend = true, seriestype=scatter)
-#plot!(plt1, 0.5*xq, y3q-0.5*xq.-0*y3q[partition[1]-2].-1.0, legend = true)
-#plot!(plt1, 0.5*xq, y4q-0.5*xq.-0*y4q[partition[1]-2].-1.0, legend=:topleft)
-#end

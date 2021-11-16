@@ -19,7 +19,7 @@ end
 D = 2*π
 order = 1
 domain = (0,D)
-partition = (128,)
+partition = (64,)
 
 model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
 Ω = Triangulation(model)
@@ -107,56 +107,100 @@ FFE0 = 0.5*MuInv*Gse0*MsInv*Msp*MpInv*Dh + 0.5*MuInv*G*MpInv*Mps*MsInv*Ds*MuInv*
 ω3i = imag(ω3)
 
 # Material form, e∈ H¹(Ω)
-MAT(u,v) = ∫(h2*v⋅u)dΩ
-rhs(v) = ∫(v⋅∇(e0))dΩ
-op = AffineFEOperator(MAT, rhs, U, V)
-deu = solve(op)
+#MAT(u,v) = ∫(h2*v⋅u)dΩ
+#rhs(v) = ∫(v⋅∇(e0))dΩ
+#op = AffineFEOperator(MAT, rhs, U, V)
+#deu = solve(op)
 
-musde(r,v) = ∫(v⋅deu*r)dΩ
-Musde = assemble_matrix(musde, R, V)
-MusdeT = transpose(Musde)
-gh(p,v) = ∫((∇⋅v)*h2*p)dΩ
-Gh = assemble_matrix(gh, P, V)
+#musde(r,v) = ∫(v⋅deu*r)dΩ
+#Musde = assemble_matrix(musde, R, V)
+#MusdeT = transpose(Musde)
+#gh(p,v) = ∫((∇⋅v)*h2*p)dΩ
+#Gh = assemble_matrix(gh, P, V)
 
-MFe0 = 0.5*MuInv*Musde*MsInv*Msp*MpInv*Dh + MuInv*Gh*MpInv*Mps*MsInv*MusdeT*MuInv*Muh
-#ge0(v,p) = ∫((∇⋅v)*e0*p)dΩ
-#Ge0 = assemble_matrix(ge0, P, V)
-#gsh(v,r) = ∫((∇⋅(v*h2))⋅r)dΩ
-#Gsh = assemble_matrix(gsh, R, V)
+#MFe0 = 0.5*MuInv*Musde*MsInv*Msp*MpInv*Dh + MuInv*Gh*MpInv*Mps*MsInv*MusdeT*MuInv*Muh
 
-#MFe0 = MuInv*Ge0*MpInv*Dh + 0.5*MuInv*Gsh*MsInv*
+ge0(p,v) = ∫((∇⋅v)*e0*p)dΩ
+Ge0 = assemble_matrix(ge0, P, V)
 
+#b1(p,v) = ∫(mean(e0)*jump(p*v⋅n_Γ))dΓ
+#B1 = assemble_matrix(b1, P, V)
+#Ge0 = Ge0 - B1
+
+b(s) = ∫(s*h2*h2)dΩ
+shsq = assemble_vector(b, S)
+hsq = MsInv*sh2
+gsh(r,v) = ∫((∇⋅(v*h2))*r)dΩ
+Gsh = assemble_matrix(gsh, R, V)
+
+as(u,s) = ∫(e0⋅(∇⋅(u*s)))dΩ
+As = assemble_matrix(as, U, S)
+#b2(u,s) = ∫(mean(e0*s)*jump(u⋅n_Γ))dΓ
+#B2 = assemble_matrix(b2, U, S)
+#As = As - B2
+
+MFe0 = MuInv*Ge0*MpInv*Dh + 0.5*MuInv*Gsh*MsInv*As
 ω4,v4 = eigs(MFe0; nev=(order+1)*partition[1]-2)
 ω4r = real(ω4)
 ω4i = imag(ω4)
 
-xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
+# material form, e∈ L²(Ω)
+ge2(p,v) = ∫((∇⋅v)*e2*p)dΩ
+Ge2 = assemble_matrix(ge2, P, V)
+b1(p,v) = ∫(mean(e2)*jump(p*v⋅n_Γ))dΓ
+B1 = assemble_matrix(b1, P, V)
+Ge2 = Ge2 - B1
+
+gh(p,v) = ∫((∇⋅v)*h2*p)dΩ
+Gh = assemble_matrix(gh, P, V)
+b2(p,v) = ∫(mean(h2)*jump(p*v⋅n_Γ))dΓ
+B2 = assemble_matrix(b2, P, V)
+Ge2 = Ge2 - B2
+
+aq(u,q) = ∫(e2⋅(∇⋅(u*q)))dΩ
+Aq = assemble_matrix(aq, U, Q)
+b3(u,q) = ∫(mean(e2)*jump(q*u⋅n_Γ))dΓ
+B3 = assemble_matrix(b3, U, Q)
+Aq = Aq - B3
+
+MFe2 = MuInv*Ge2*MpInv*Dh + 0.5*MuInv*Gh*MpInv*Aq
+ω5,v5 = eigs(MFe2; nev=(order+1)*partition[1]-2)
+ω5r = real(ω5)
+ω5i = imag(ω5)
+
+#xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
+xq = LinRange(1, (order+1)*partition[1]-2, (order+1)*partition[1]-2)
 xq = reverse(xq)
 
 aω1r = lazy_map(abs, ω1r)
 aω2r = lazy_map(abs, ω2r)
 aω3r = lazy_map(abs, ω3r)
-aω4r = lazy_map(abs, ω4i)
+aω4r = lazy_map(abs, ω4r)
+aω5r = lazy_map(abs, ω5r)
 y1q = lazy_map(sqrt, aω1r)
 y2q = lazy_map(sqrt, aω2r)
 y3q = lazy_map(sqrt, aω3r)
 y4q = lazy_map(sqrt, aω4r)
+y5q = lazy_map(sqrt, aω5r)
 z1q = lazy_map(abs, ω1i)
 z2q = lazy_map(abs, ω2i)
 z3q = lazy_map(abs, ω3i)
 z4q = lazy_map(abs, ω4i)
+z5q = lazy_map(abs, ω5i)
 
 print(z1q,"\n")
 print(z2q,"\n")
 print(z3q,"\n")
 print(z4q,"\n")
+print(z5q,"\n")
 
 plt1 = plot()
 plot!(plt1, 0.5*xq, 0.5*xq, legend = false)
 plot!(plt1, 0.5*xq, y1q, legend = true)
-plot!(plt1, 0.5*xq, y2q, legend = true)
+plot!(plt1, 0.5*xq, y2q, legend = true, seriestype=:scatter)
 plot!(plt1, 0.5*xq, y3q, legend = true)
 plot!(plt1, 0.5*xq, y4q, legend = true)
+plot!(plt1, 0.5*xq, y5q, legend = :topleft)
 display(plt1)
 
 #mue(u,v) = ∫(v⋅u*e0)dΩ

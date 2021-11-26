@@ -13,7 +13,8 @@ function profiles(x)
   de = -2.0 .* dH ./ H ./ H ./ H
   E  = e .* H
   f  = 0.0 .* sin.(x .- π)
-  H, dH, e, de, E, f
+  a  = 2.0 .* dH .* dH ./ H ./ H ./ H
+  H, dH, e, de, E, f, a
 end
 
 D = 2*π
@@ -43,6 +44,7 @@ e(x)  = profiles(x[1])[3]
 de(x) = profiles(x[1])[4]
 E(x)  = profiles(x[1])[5]
 f(x)  = profiles(x[1])[6]
+a(x)  = profiles(x[1])[7]
 
 h2 = interpolate_everywhere(h,Q)
 e0 = interpolate_everywhere(e,S)
@@ -252,6 +254,153 @@ y1q=y1q[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
 print(xq0,"\n")
 print(xq,"\n")
 
+########## material form, s ∈ L²(Ω) ################################################
+partition = (scale*ne,)
+model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
+Ω = Triangulation(model)
+dΩ = Measure(Ω, 2*(order+1))
+Γ = SkeletonTriangulation(model)
+dΓ = Measure(Γ, 0)
+n_Γ = get_normal_vector(Γ)
+
+S = FESpace(model, ReferenceFE(lagrangian, Float64, order+1), conformity=:H1)
+V = FESpace(model, ReferenceFE(raviart_thomas, Float64, order), conformity=:HDiv)
+Q = FESpace(model, ReferenceFE(lagrangian, Float64, order), conformity=:L2)
+R = TrialFESpace(S)
+U = TrialFESpace(V)
+P = TrialFESpace(Q)
+
+h(x)  = profiles(x[1])[1]
+dh(x) = profiles(x[1])[2]
+e(x)  = profiles(x[1])[3]
+de(x) = profiles(x[1])[4]
+E(x)  = profiles(x[1])[5]
+f(x)  = profiles(x[1])[6]
+a(x)  = profiles(x[1])[7]
+a(x)  = profiles(x[1])[7]
+
+h2 = interpolate_everywhere(h,Q)
+e0 = interpolate_everywhere(e,S)
+e2 = interpolate_everywhere(e,Q)
+E2 = interpolate_everywhere(E,Q)
+E0 = interpolate_everywhere(E,S)
+a0 = interpolate_everywhere(a,S)
+
+_xq0 = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
+_xq0 = reverse(_xq0)
+
+mp(p,q) = ∫(q*p)dΩ
+Mp = assemble_matrix(mp, P, Q)
+MpInv = inv(Matrix(Mp))
+
+mu(u,v) = ∫(v⋅u)dΩ
+Mu = assemble_matrix(mu, U, V)
+MuInv = inv(Matrix(Mu))
+
+ms(r,s) = ∫(s*r)dΩ
+Ms = assemble_matrix(ms, R, S)
+MsInv = inv(Matrix(Ms))
+
+md(u,q) = ∫(q*(∇⋅u))dΩ
+D = assemble_matrix(md, U, Q)
+G = transpose(D)
+
+muc(u,v) = ∫(f*u⋅v)dΩ
+Muc = assemble_matrix(muc, U, V)
+
+# wave eqn
+muE(u,v) = ∫(E0*u⋅v)dΩ
+MuE = assemble_matrix(muE, U, V)
+mua(u,v) = ∫(a0*u⋅v)dΩ
+Mua = assemble_matrix(mua, U, V)
+A = MuInv*MuE*MuInv*G*MpInv*D + MuInv*Mua #+ MuInv*Muc*MuInv*Muc
+_ω1,_v1 = eigs(A; nev=(order+1)*partition[1]-2)
+_ω1r = real(_ω1)
+_ω1i = imag(_ω1)
+
+partition = (ne,)
+model = CartesianDiscreteModel(domain, partition; isperiodic=(true,))
+Ω = Triangulation(model)
+dΩ = Measure(Ω, 2*(order+1))
+Γ = SkeletonTriangulation(model)
+dΓ = Measure(Γ, 0)
+n_Γ = get_normal_vector(Γ)
+
+S = FESpace(model, ReferenceFE(lagrangian, Float64, order+1), conformity=:H1)
+V = FESpace(model, ReferenceFE(raviart_thomas, Float64, order), conformity=:HDiv)
+Q = FESpace(model, ReferenceFE(lagrangian, Float64, order), conformity=:L2)
+R = TrialFESpace(S)
+U = TrialFESpace(V)
+P = TrialFESpace(Q)
+
+h(x)  = profiles(x[1])[1]
+dh(x) = profiles(x[1])[2]
+e(x)  = profiles(x[1])[3]
+de(x) = profiles(x[1])[4]
+E(x)  = profiles(x[1])[5]
+f(x)  = profiles(x[1])[6]
+a(x)  = profiles(x[1])[7]
+
+h2 = interpolate_everywhere(h,Q)
+e0 = interpolate_everywhere(e,S)
+e2 = interpolate_everywhere(e,Q)
+E2 = interpolate_everywhere(E,Q)
+E0 = interpolate_everywhere(E,S)
+
+_xq = LinRange(0, (order+1)*partition[1]-3, (order+1)*partition[1]-2)
+_xq = reverse(_xq)
+
+mp(p,q) = ∫(q*p)dΩ
+Mp = assemble_matrix(mp, P, Q)
+MpInv = inv(Matrix(Mp))
+
+mu(u,v) = ∫(v⋅u)dΩ
+Mu = assemble_matrix(mu, U, V)
+MuInv = inv(Matrix(Mu))
+
+ms(r,s) = ∫(s*r)dΩ
+Ms = assemble_matrix(ms, R, S)
+MsInv = inv(Matrix(Ms))
+
+md(u,q) = ∫(q*(∇⋅u))dΩ
+D = assemble_matrix(md, U, Q)
+G = transpose(D)
+
+muc(u,v) = ∫(f*u⋅v)dΩ
+Muc = assemble_matrix(muc, U, V)
+
+# material form, e∈ L²(Ω)
+muh(u,v) = ∫(v⋅u*h2)dΩ
+Muh = assemble_matrix(muh, U, V)
+mue2(u,v) = ∫(v⋅u*e2)dΩ
+Mue2 = assemble_matrix(mue2, U, V)
+Dh = D*MuInv*Muh
+
+gh(p,v) = ∫(-1.0*(∇⋅v)*e2*p)dΩ
+Gh = assemble_matrix(gh, P, V)
+
+ds(u,q) = ∫(-1.0*(∇⋅(q*u))*e2)dΩ + ∫(mean(e2)*jump((q*u)⋅n_Γ))dΓ
+Ds = assemble_matrix(ds, U, Q)
+
+gs(p,v) = ∫(0.5*(∇⋅(h2*v))*p)dΩ - ∫(mean(h2)*jump((p*v)⋅n_Γ))dΓ
+Gs = assemble_matrix(gs, P, V)
+
+A2 = MuInv*Gh*MpInv*Dh + MuInv*Gs*MpInv*Ds
+_ω2,_v2 = eigs(A2; nev=(order+1)*partition[1]-2)
+_ω2r = real(_ω2)
+_ω2i = imag(_ω2)
+
+_aω1r = lazy_map(abs, _ω1r)
+_aω2r = lazy_map(abs, _ω2r)
+_y1q = lazy_map(sqrt, _aω1r)
+_y2q = lazy_map(sqrt, _aω2r)
+_z1q = lazy_map(abs, _ω1i)
+_z2q = lazy_map(abs, _ω2i)
+
+_xq0=_xq0[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
+_y1q=_y1q[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
+####################################################################################
+
 plt1 = plot()
 #plot!(plt1, 0.5*xq, 0.5*xq, legend = true, label="ω = k")
  
@@ -269,6 +418,7 @@ plot!(plt1, 0.5*xq, y2q.-y1q, legend = true, label="S∈ L²(Ω), Projection")
 plot!(plt1, 0.5*xq, y6q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Integration by parts", seriestype=:scatter)
 plot!(plt1, 0.5*xq, y5q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Projection")
 #plot!(plt1, 0.5*xq, y7q.-y1q, legend = true, label="S∈ H¹(Ω), IPB, non energy conserving",seriestype=:scatter)
+plot!(plt1, 0.5*_xq, _y2q.-_y1q, legend = :topleft, label="s∈ L²(Ω), Integration by parts")
  
 #plot!(plt1, 0.5*xq, 0.5*xq)
 #plot!(plt1, 0.5*xq, y1q.-1.0)

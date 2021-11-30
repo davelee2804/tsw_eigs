@@ -390,12 +390,30 @@ _ω2,_v2 = eigs(A2; nev=(order+1)*partition[1]-2)
 _ω2r = real(_ω2)
 _ω2i = imag(_ω2)
 
+# material form, e∈ H¹(Ω)
+gh(p,v) = ∫(-1.0*(∇⋅v)*e0*p)dΩ
+Gh = assemble_matrix(gh, P, V)
+
+ds(u,s) = ∫(-1.0*(∇⋅(s*u))*e0)dΩ + ∫(jump((e0*s*u)⋅n_Γ))dΓ
+Ds = assemble_matrix(ds, U, S)
+
+gs(r,v) = ∫(0.5*(∇⋅(h2*v))*r)dΩ - ∫(mean(h2)*jump((r*v)⋅n_Γ))dΓ
+Gs = assemble_matrix(gs, R, V)
+
+A3 = MuInv*Gh*MpInv*Dh + MuInv*Gs*MsInv*Ds
+_ω3,_v3 = eigs(A3; nev=(order+1)*partition[1]-2)
+_ω3r = real(_ω3)
+_ω3i = imag(_ω3)
+
 _aω1r = lazy_map(abs, _ω1r)
 _aω2r = lazy_map(abs, _ω2r)
+_aω3r = lazy_map(abs, _ω3r)
 _y1q = lazy_map(sqrt, _aω1r)
 _y2q = lazy_map(sqrt, _aω2r)
+_y3q = lazy_map(sqrt, _aω3r)
 _z1q = lazy_map(abs, _ω1i)
 _z2q = lazy_map(abs, _ω2i)
+_z3q = lazy_map(abs, _ω3i)
 
 _xq0=_xq0[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
 _y1q=_y1q[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
@@ -403,22 +421,25 @@ _y1q=_y1q[(scale-1)*(order+1)*ne+1:scale*(order+1)*ne-2]
 
 plt1 = plot()
 #plot!(plt1, 0.5*xq, 0.5*xq, legend = true, label="ω = k")
- 
-#plot!(plt1, 0.5*xq0, y1q, legend = true, label="Wave eqn.")
-#plot!(plt1, 0.5*xq, y4q, legend = :topleft, label="S∈ L²(Ω), Integration by parts", seriestype=:scatter)
-#plot!(plt1, 0.5*xq, y2q, legend = true, label="S∈ L²(Ω), Projection")
+
+ana = 0.5*xq
+
+#plot!(plt1, 0.5*xq0, y1q.-0*ana, legend = true, label="Wave eqn.")
+#plot!(plt1, 0.5*xq, y4q.-ana, legend = :topleft, label="S∈ L²(Ω), Integration by parts", seriestype=:scatter)
+#plot!(plt1, 0.5*xq, y2q.-ana, legend = true, label="S∈ L²(Ω), Projection")
 #plot!(plt1, 0.5*xq, y3q, legend = true, label="IPB, non energy conserving")
-#plot!(plt1, 0.5*xq, y6q, legend = :topleft, label="S∈ H¹(Ω), Integration by parts", seriestype=:scatter)
-#plot!(plt1, 0.5*xq, y5q, legend = :topleft, label="S∈ H¹(Ω), Projection")
+#plot!(plt1, 0.5*xq, y6q.-ana, legend = :topleft, label="S∈ H¹(Ω), Integration by parts", seriestype=:scatter)
+#plot!(plt1, 0.5*xq, y5q.-ana, legend = :topleft, label="S∈ H¹(Ω), Projection")
 #plot!(plt1, 0.5*xq, y7q, legend = :topleft, label="S∈ H¹(Ω), IBP, non-energy conserving")
 
-plot!(plt1, 0.5*xq, y4q.-y1q, legend = :topleft, label="S∈ L²(Ω), Integration by parts", seriestype=:scatter)
-plot!(plt1, 0.5*xq, y2q.-y1q, legend = true, label="S∈ L²(Ω), Projection")
+#plot!(plt1, 0.5*xq, y2q.-y1q, legend = true, label="S∈ L²(Ω), Projection",seriestype=:scatter)
+plot!(plt1, 0.5*xq, y4q.-y1q, legend = :topleft, label="S∈ L²(Ω), Integration by parts")
 #plot!(plt1, 0.5*xq, y3q.-y1q, legend = true, label="S∈ L²(Ω), IPB, non energy conserving",seriestype=:scatter)
-plot!(plt1, 0.5*xq, y6q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Integration by parts", seriestype=:scatter)
-plot!(plt1, 0.5*xq, y5q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Projection")
+#plot!(plt1, 0.5*xq, y5q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Projection",seriestype=:scatter)
+plot!(plt1, 0.5*xq, y6q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Integration by parts")
 #plot!(plt1, 0.5*xq, y7q.-y1q, legend = true, label="S∈ H¹(Ω), IPB, non energy conserving",seriestype=:scatter)
 plot!(plt1, 0.5*_xq, _y2q.-_y1q, legend = :topleft, label="s∈ L²(Ω), Integration by parts")
+plot!(plt1, 0.5*_xq, _y3q.-_y1q, legend = :topleft, label="s∈ H¹(Ω), Integration by parts")
  
 #plot!(plt1, 0.5*xq, 0.5*xq)
 #plot!(plt1, 0.5*xq, y1q.-1.0)

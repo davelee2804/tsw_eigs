@@ -8,7 +8,7 @@ function profiles(x)
   α  = 0.5
   k  = 16
   H  = 1.0 .+ α.*cos.(k.*x .- π)
-  dH = 1.0 .- k.*α.*sin.(k.*x .- π)
+  dH = 0.0 .- k.*α.*sin.(k.*x .- π)
   e  = 1.0 ./ H ./ H
   de = -2.0 .* dH ./ H ./ H ./ H
   E  = e .* H
@@ -18,9 +18,9 @@ function profiles(x)
 end
 
 D = 2*π
-order = 1
+order = 0
 domain = (0,D)
-ne = 64
+ne = 128
 scale = 4
 
 partition = (scale*ne,)
@@ -432,14 +432,14 @@ ana = 0.5*xq
 #plot!(plt1, 0.5*xq, y5q.-ana, legend = :topleft, label="S∈ H¹(Ω), Projection")
 #plot!(plt1, 0.5*xq, y7q, legend = :topleft, label="S∈ H¹(Ω), IBP, non-energy conserving")
 
-#plot!(plt1, 0.5*xq, y2q.-y1q, legend = true, label="S∈ L²(Ω), Projection",seriestype=:scatter)
-plot!(plt1, 0.5*xq, y4q.-y1q, legend = :topleft, label="S∈ L²(Ω), Integration by parts")
+plot!(plt1, 0.5*xq, y2q.-y1q, legend = true, label="S∈ L²(Ω), Projection",seriestype=:scatter)
+plot!(plt1, 0.5*xq, y5q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Projection",seriestype=:scatter)
+plot!(plt1, 0.5*xq[1:1:end], y4q[1:1:end].-y1q[1:1:end], legend = :topleft, label="S∈ L²(Ω), Integration by parts")
 #plot!(plt1, 0.5*xq, y3q.-y1q, legend = true, label="S∈ L²(Ω), IPB, non energy conserving",seriestype=:scatter)
-#plot!(plt1, 0.5*xq, y5q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Projection",seriestype=:scatter)
-plot!(plt1, 0.5*xq, y6q.-y1q, legend = :topleft, label="S∈ H¹(Ω), Integration by parts")
+plot!(plt1, 0.5*xq[1:1:end], y6q[1:1:end].-y1q[1:1:end], legend = :topleft, label="S∈ H¹(Ω), Integration by parts")
 #plot!(plt1, 0.5*xq, y7q.-y1q, legend = true, label="S∈ H¹(Ω), IPB, non energy conserving",seriestype=:scatter)
-plot!(plt1, 0.5*_xq, _y2q.-_y1q, legend = :topleft, label="s∈ L²(Ω), Integration by parts")
-plot!(plt1, 0.5*_xq, _y3q.-_y1q, legend = :topleft, label="s∈ H¹(Ω), Integration by parts")
+plot!(plt1, 0.5*_xq[1:1:end], _y2q[1:1:end].-_y1q[1:1:end], legend = :topleft, label="s∈ L²(Ω), Integration by parts")
+plot!(plt1, 0.5*_xq[1:1:end], _y3q[1:1:end].-_y1q[1:1:end], legend = :topleft, label="s∈ H¹(Ω), Integration by parts")
  
 #plot!(plt1, 0.5*xq, 0.5*xq)
 #plot!(plt1, 0.5*xq, y1q.-1.0)
